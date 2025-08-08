@@ -1,0 +1,97 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Segoe UI', sans-serif;
+  }
+  
+  body {
+    background: #fff;
+  }
+  
+  .container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+  }
+  
+  .login-box {
+    display: flex;
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 15px 25px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    width: 800px;
+    max-width: 90%;
+  }
+  
+  .left-side {
+    background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+    width: 50%;
+    position: relative;
+    clip-path: polygon(0 0, 100% 0, 75% 50%, 100% 100%, 0 100%);
+  }
+  
+  .right-side {
+    flex: 1;
+    padding: 40px;
+  }
+  
+  h2 {
+    color: #6a11cb;
+    margin-bottom: 30px;
+    text-align: center;
+  }
+  
+  .input-group {
+    position: relative;
+    margin-bottom: 20px;
+  }
+  
+  .input-group input {
+    width: 100%;
+    padding: 12px 40px 12px 10px;
+    border: none;
+    border-bottom: 1px solid #ccc;
+    outline: none;
+  }
+  
+  .input-group .icon {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+  
+  .dropdown {
+    width: 100%;
+    padding: 12px;
+    margin-bottom: 20px;
+    border: 1px solid #ccc;
+    outline: none;
+    border-radius: 4px;
+  }
+  
+  .forgot {
+    text-align: right;
+    margin-bottom: 20px;
+  }
+  
+  .forgot a {
+    color: #999;
+    font-size: 0.9em;
+    text-decoration: none;
+  }
+  
+  .btn {
+    background: linear-gradient(135deg, #36cb11 0%, #25fc98 100%);
+    color: white;
+    border: none;
+    padding: 12px;
+    width: 100%;
+    border-radius: 25px;
+    cursor: pointer;
+    font-weight: bold;
+    box-shadow: 0 5px 15px rgba(106, 17, 203, 0.4);
+  }
