@@ -16,7 +16,9 @@ import {
   DialogContent,
   DialogActions,
   Alert,
-  InputAdornment
+  InputAdornment,
+  InputLabel,
+  FormControl
 } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
 import { getDocs, updateDoc, deleteDoc, doc, collection } from 'firebase/firestore';
@@ -77,7 +79,7 @@ const UpdateStock = () => {
       setLoading(false);
     }
   };
-
+  
   useEffect(() => {
     fetchProducts(); // Initial load
   }, []);
@@ -108,11 +110,12 @@ const UpdateStock = () => {
   const handleUpdateProduct = async () => {
     if (!selectedProduct) return;
 
-    const { id, productName, costPrice, sellPrice, stock } = selectedProduct;
+    const { id, productName, branchId, costPrice, sellPrice, stock } = selectedProduct;
 
     // Validate fields
     if (
       !productName?.trim() ||
+      !branchId?.trim() ||
       isNaN(costPrice) ||
       isNaN(sellPrice) ||
       isNaN(stock)
@@ -129,7 +132,7 @@ const UpdateStock = () => {
         costPrice: Number(costPrice),
         sellPrice: Number(sellPrice),
         stock: parseInt(stock),
-        branchId: selectedProduct.branchId || '',
+        branchId: branchId.trim(),
       });
 
       setSuccess('Product updated successfully!');
@@ -168,18 +171,18 @@ const UpdateStock = () => {
     { 
       field: 'productName', 
       headerName: 'Product Name', 
-      flex: 1,
+      flex: 5,
       renderCell: (params) => (
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
           <Avatar sx={{ 
             bgcolor: params.row.status === 'Low' ? '#ff9800' : '#4caf50',
             mr: 2,
-            width: 32, 
-            height: 32
+            width: 28, 
+            height: 28
           }}>
             <InventoryIcon fontSize="small" />
           </Avatar>
-          <Typography fontWeight="500">{params.value}</Typography>
+          <Typography fontSize={14} fontWeight="500">{params.value}</Typography>
         </Box>
       )
     },
@@ -189,15 +192,16 @@ const UpdateStock = () => {
       flex: 1,
       renderCell: (params) => {
         const branch = branches.find(b => b.id === params.value);
-        return <Typography>{branch?.name || 'Unknown'}</Typography>;
+        return <Typography fontSize={14} >{branch?.name || 'Unknown'}</Typography>;
       }
     },
     { 
       field: 'costPrice', 
       headerName: 'Cost Price (Rs.)', 
       type: 'number',
+      flex: 1,
       renderCell: (params) => (
-        <Typography fontWeight="500">
+        <Typography fontSize={14} fontWeight="500">
           Rs. {params.value.toFixed(2)}
         </Typography>
       )
@@ -206,8 +210,9 @@ const UpdateStock = () => {
       field: 'sellPrice', 
       headerName: 'Sell Price (Rs.)', 
       type: 'number',
+      flex: 1,
       renderCell: (params) => (
-        <Typography fontWeight="500">
+        <Typography fontSize={14} fontWeight="500">
           Rs. {params.value.toFixed(2)}
         </Typography>
       )
@@ -216,6 +221,7 @@ const UpdateStock = () => {
       field: 'stock', 
       headerName: 'Stock', 
       type: 'number',
+      flex: 1,
       renderCell: (params) => (
         <Chip
           label={`${params.value} ${params.value === 1 ? 'unit' : 'units'}`}
@@ -231,12 +237,15 @@ const UpdateStock = () => {
     {
       field: 'action',
       headerName: 'Action',
-      width: 150,
+      align:'center',
+      headerAlign: 'center',
+      width: 120,
       renderCell: (params) => {
         return (
           <Button
             variant="outlined"
             color="primary"
+            size='small'
             startIcon={<EditIcon />}
             onClick={() => handleProductClick(params.row)}
             sx={{
@@ -304,53 +313,61 @@ const UpdateStock = () => {
           {success}
         </Alert>
       )}
-        <Box sx={{ maxWidth: 300, mb: 2 }}>
-            <Typography variant="subtitle2" sx={{ mb: 1 }}>Filter by Branch</Typography>
-            <Select
-              fullWidth
-              value={selectedBranch}
-              onChange={(e) => setSelectedBranch(e.target.value)}
-              displayEmpty
-            >
-              <MenuItem value="">All Branches</MenuItem>
-              {branches.map(branch => (
-                <MenuItem key={branch.id} value={branch.id}>
-                  {branch.name}
-                </MenuItem>
-              ))}
-            </Select>
-          </Box>
+        
       {/* Search Bar */}
       <Paper 
-        elevation={2} 
-        sx={{ 
-          mb: 3,
-          p: 2,
-          borderRadius: '12px',
-          backgroundColor: '#f8f9fa'
-        }}
+  elevation={2} 
+  sx={{ 
+    flex: 1,
+    mb: 3,
+    p: 2,
+    borderRadius: '12px',
+    backgroundColor: '#f8f9fa'
+  }}
+>
+  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+    <FormControl sx={{ minWidth: 300 }}>
+      <InputLabel id="branch-label">Branch</InputLabel>
+      <Select
+        labelId="branch-label"
+        label="Branch"
+        value={selectedBranch}
+        onChange={(e) => setSelectedBranch(e.target.value)}
+        
       >
-        <TextField
-          fullWidth
-          variant="outlined"
-          placeholder="Search products by name or ID..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon color="action" />
-              </InputAdornment>
-            ),
-          }}
-          sx={{
-            '& .MuiOutlinedInput-root': {
-              borderRadius: '8px',
-              backgroundColor: 'white',
-            }
-          }}
-        />
-      </Paper>
+        <MenuItem value="">All Branches</MenuItem>
+        {branches.map(branch => (
+          <MenuItem key={branch.id} value={branch.id}>
+            {branch.name}
+          </MenuItem>
+        ))}
+      </Select>
+    </FormControl>
+
+    <TextField
+      fullWidth
+      variant="outlined"
+      placeholder="Search products by name or ID..."
+      value={searchTerm}
+      onChange={(e) => setSearchTerm(e.target.value)}
+      InputProps={{
+        startAdornment: (
+          <InputAdornment position="start">
+            <SearchIcon color="action" />
+          </InputAdornment>
+        ),
+      }}
+      sx={{
+        flexGrow: 1,
+        '& .MuiOutlinedInput-root': {
+          borderRadius: '8px',
+          backgroundColor: 'white',
+        }
+      }}
+    />
+  </Box>
+</Paper>
+
 
       {/* Display Product List in DataGrid */}
       <Paper 
@@ -380,6 +397,7 @@ const UpdateStock = () => {
           rows={filteredProducts}
           columns={columns}
           loading={loading}
+          density="compact"
           pageSize={10}
           sx={{
             '& .MuiDataGrid-cell': {
@@ -462,13 +480,12 @@ const UpdateStock = () => {
                 onChange={(e) =>
                   setSelectedProduct({ ...selectedProduct, branchId: e.target.value })
                 }
-                SelectProps={{ native: false }}
               >
-                <option value="">Select a branch</option>
+                <MenuItem value="">Select a branch</MenuItem>
                 {branches.map(branch => (
-                  <option key={branch.id} value={branch.id}>
+                  <MenuItem key={branch.id} value={branch.id}>
                     {branch.name}
-                  </option>
+                  </MenuItem>
                 ))}
               </TextField>
             </Grid>

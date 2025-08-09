@@ -111,7 +111,7 @@ const SalesReport = () => {
     
 
     setFilteredOrders(results);
-  }, [filterType, dateFilter, searchTerm, orders, loading]);
+  }, [filterType, selectedBranch, dateFilter, searchTerm, orders, loading]);
 
   const prepareChartData = () => {
     const dataMap = new Map();

@@ -71,12 +71,12 @@ const AddProduct = () => {
     }
 
     try {
-      const branchRef = doc(db, 'branches', selectedBranch);
-      const productsRef = collection(branchRef, 'products');
+      const productsRef = collection(db, 'products');
 
       const productQuery = query(
         productsRef,
-        where('productName', '==', productName.trim().toLowerCase())
+        where('productName', '==', productName.trim().toLowerCase()),
+        where('branchId', '==', selectedBranch)
       );
       const existingProducts = await getDocs(productQuery);
 

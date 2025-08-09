@@ -3,7 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { db } from '../firebase';
 import { useAuth } from '../contexts/AuthContext';
 import {
-  doc, getDocs, addDoc, collection, increment, writeBatch, serverTimestamp
+  doc, getDocs, addDoc, collection, increment, writeBatch, serverTimestamp,
+    query,
+    where
 } from 'firebase/firestore';
 import { toast } from 'react-toastify';
 import {
@@ -20,7 +22,8 @@ import SearchIcon from '@mui/icons-material/Search';
 const CheckoutPage = ({ userId }) => {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
-
+  const [branches, setBranches] = useState([]);
+  const [selectedBranch, setSelectedBranch] = useState('');
   const [products, setProducts] = useState([]);
   const [cartItems, setCartItems] = useState([]);
   const [total, setTotal] = useState(0);
@@ -37,18 +40,50 @@ const CheckoutPage = ({ userId }) => {
   const [searchTerm, setSearchTerm] = useState('');
 
   const formatPrice = (price) => price && !isNaN(price) ? Number(price).toFixed(2) : '0.00';
+  const fetchBranches = async () => {
+        if (currentUser?.role !== 'admin') return;
+        try {
+          const branchSnapshot = await getDocs(collection(db, 'branches'));
+          const branchList = branchSnapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          }));
+          setBranches(branchList);
+          setSelectedBranch(branchList[0]?.id || '');
+        } catch (err) {
+          console.error('Error fetching branches:', err);
+        }
+      };
+  const fetchProducts = async () => {
+    let branchIdToUse = currentUser?.branchId;
 
-  useEffect(() => {
-    const fetchProducts = async () => {
-      if (!currentUser?.branchId) {
-        setError("Branch ID not found for current user.");
+      if (currentUser?.role === 'admin') {
+        if (!selectedBranch) {
+          setProducts([]);
+          setLoading(false);
+          return;
+        }
+        branchIdToUse = selectedBranch;
+      }
+
+      if (!branchIdToUse) {
+        setError("Branch ID not found.");
         setLoading(false);
         return;
       }
 
-      try {
-        const branchRef = doc(db, 'branches', currentUser.branchId);
-        const productsSnapshot = await getDocs(collection(branchRef, 'products'));
+    try {
+        setLoading(true);
+
+        let productQuery = collection(db, 'products');
+        
+        if (currentUser?.role === 'admin' && selectedBranch) {
+          productQuery = query(productQuery, where('branchId', '==', selectedBranch));
+        } else if (currentUser?.role !== 'admin') {
+          productQuery = query(productQuery, where('branchId', '==', currentUser?.branchId));
+        }
+
+        const productsSnapshot = await getDocs(productQuery);
         const productsData = productsSnapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data(),
@@ -56,8 +91,10 @@ const CheckoutPage = ({ userId }) => {
           costPrice: typeof doc.data().costPrice === 'number' ? doc.data().costPrice : 0,
           sellPrice: typeof doc.data().sellPrice === 'number' ? doc.data().sellPrice : 0,
           stock: typeof doc.data().stock === 'number' ? doc.data().stock : 0,
+          branchId: typeof doc.data().branchId || ''
         }));
         setProducts(productsData);
+        setError(null);
       } catch (err) {
         console.error("Error fetching products: ", err);
         setError('Failed to load products. Please try again.');
@@ -66,8 +103,10 @@ const CheckoutPage = ({ userId }) => {
       }
     };
 
+  useEffect(() => {
+    fetchBranches();
     fetchProducts();
-  }, [currentUser?.branchId]);
+  }, [currentUser]);
 
   useEffect(() => {
     const totalAmount = cartItems.reduce((sum, item) => sum + (item.sellPrice * item.quantity), 0);
@@ -80,6 +119,12 @@ const CheckoutPage = ({ userId }) => {
       return () => clearTimeout(timer);
     }
   }, [success]);
+
+  useEffect(() => {
+    // Reset cart when branch changes
+    fetchProducts();
+    setCartItems([]);
+  }, [selectedBranch]);
 
   const filteredProducts = products.filter(product =>
     product.productName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -139,7 +184,8 @@ const CheckoutPage = ({ userId }) => {
   };
 
   const handleCheckout = async () => {
-    if (!currentUser?.branchId) {
+    const branchId = currentUser.role == 'admin' ? selectedBranch : currentUser.branchId;
+    if (!branchId) {
       toast.error("Branch ID not found for current user.");
       return;
     }
@@ -199,12 +245,12 @@ const CheckoutPage = ({ userId }) => {
         totalProfit,
         profitMargin: (totalProfit / orderTotal * 100) || 0,
         ...orderDetails,
-        branchId: currentUser.branchId,
+        branchId: branchId,
         timestamp: serverTimestamp()
       });
 
       cartItems.forEach(item => {
-        const productRef = doc(db, 'branches', currentUser.branchId, 'products', item.id);
+        const productRef = doc(db, 'products', item.id);
         batch.update(productRef, {
           stock: increment(-item.quantity),
           salesCount: increment(item.quantity)
@@ -214,8 +260,9 @@ const CheckoutPage = ({ userId }) => {
       await batch.commit();
 
       // Refresh products
-      const branchRef = doc(db, 'branches', currentUser.branchId);
-      const productsSnapshot = await getDocs(collection(branchRef, 'products'));
+      const productsSnapshot = await getDocs(
+        query(collection(db, 'products'), where('branchId', '==', branchId))
+      );
       const productsData = productsSnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
@@ -292,18 +339,40 @@ const CheckoutPage = ({ userId }) => {
         </Alert>
       </Collapse>
 
-      <Grid container spacing={4}>
+      <Grid container spacing={4} sx={{ flexWrap: { xs: 'wrap', md: 'nowrap' } }}>
         {/* Product List */}
-        <Grid item xs={12} md={8}>
+        <Grid item xs={12} md={5}>
           <Paper sx={{ 
             p: 3, 
             borderRadius: '16px',
-            overflow: 'hidden'
+            overflow: 'hidden',
+            top: 20,
+            boxShadow: '0 5px 15px rgba(0,0,0,0.1)',
+            borderRadius: '16px',
+            bgcolor: 'background.paper',
+            minWidth: 300       // optional, avoid shrinking too much
           }}>
             <Typography variant="h5" gutterBottom sx={{ mb: 3 }}>
               Available Products
             </Typography>
-            
+            {currentUser?.role === 'admin' && (
+                <Box sx={{ mb: 3, maxWidth: "100%" }}>
+                  <Select
+                    fullWidth
+                    value={selectedBranch}
+                    onChange={e => setSelectedBranch(e.target.value)}
+                    displayEmpty
+                    size="small"
+                  >
+                    <MenuItem value="">Select Branch</MenuItem>
+                    {branches.map(branch => (
+                      <MenuItem key={branch.id} value={branch.id}>
+                        {branch.name || branch.id}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </Box>
+              )}
             {/* Search Input */}
             <TextField
               fullWidth
@@ -382,7 +451,7 @@ const CheckoutPage = ({ userId }) => {
         </Grid>
 
         {/* Cart Section */}
-        <Grid item xs={12} md={4}>
+        <Grid item xs={12} md={5}>
           <Paper sx={{ 
             p: 3, 
             position: 'sticky',

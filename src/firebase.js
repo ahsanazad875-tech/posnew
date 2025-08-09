@@ -14,15 +14,14 @@ import {
 } from 'firebase/firestore';
 
 const firebaseConfig = {
-  apiKey: "AIzaSyDdr_y8iColKO80QSYLWyhI3mFOwDO_Xzo",
-  authDomain: "inventory-e1cdf.firebaseapp.com",
-  projectId: "inventory-e1cdf",
-  storageBucket: "inventory-e1cdf.firebasestorage.app",
-  messagingSenderId: "768557409755",
-  appId: "1:768557409755:web:070000a88b282b4f40f3fe",
-  measurementId: "G-8ZZHK0J8S6"
+  apiKey: "AIzaSyB_XrdD7BsUQGN96X1SIj8FpwdS5dKXh_E",
+  authDomain: "royalvapes-d3b21.firebaseapp.com",
+  projectId: "royalvapes-d3b21",
+  storageBucket: "royalvapes-d3b21.firebasestorage.app",
+  messagingSenderId: "576236321162",
+  appId: "1:576236321162:web:12f626e27d9ae3a3453073",
+  measurementId: "G-TSMB2WFGR1"
 };
-
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);

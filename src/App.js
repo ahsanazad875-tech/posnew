@@ -40,8 +40,38 @@ function App() {
   function PrivateRoute({ children, allowedRoles }) {
 
     if (loading) {
-      return <div>Loading...</div>; // show spinner while checking auth
-    }
+  return (
+    <div style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: 'rgba(255, 255, 255, 0.7)', // optional semi-transparent background
+      zIndex: 1000 // to ensure it's above other content
+    }}>
+      <div className="spinner" style={{
+        width: '50px',
+        height: '50px',
+        border: '5px solid #f3f3f3',
+        borderTop: '5px solid #3498db',
+        borderRadius: '50%',
+        animation: 'spin 1s linear infinite'
+      }}></div>
+      
+      {/* Add this to your CSS or style tag */}
+      <style>{`
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      `}</style>
+    </div>
+  );
+}
 
     if (!currentUser) {
       return <Navigate to="/login" />;
@@ -145,6 +175,7 @@ function App() {
               </PrivateRoute>
             }
           />
+          
 
           <Route path="*" element={<Navigate to="/login" />} />
         </Routes>

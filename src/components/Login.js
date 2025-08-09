@@ -81,10 +81,8 @@ const handleLogin = async (e) => {
       // User login - try Firebase Auth first, then Firestore
       try {
         // Try Firebase Auth first
-        console.log(auth, email, password);
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
-        console.log(user, user.uid);
         const userDoc = await getDoc(doc(db, 'users', user.uid));
         if (userDoc.exists()) {
           const userData = userDoc.data();

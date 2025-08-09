@@ -69,7 +69,6 @@ const ModifyUser = () => {
         ...doc.data(),
       }));
       setUsers(userList);
-      console.log(userList);
     } catch (error) {
       console.error('Error fetching users:', error);
       setError('Failed to load users. Please try again.');
@@ -80,7 +79,6 @@ const ModifyUser = () => {
   const fetchBranches = async () => {
     const snapshot = await getDocs(collection(db, 'branches'));
     const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    console.log(list);
     setBranches(list);
   };
 
@@ -110,9 +108,7 @@ const ModifyUser = () => {
 
       await updateDoc(userRef, {
         name: selectedUser.name.trim(),
-        email: selectedUser.email.trim(),
         role: selectedUser.role,
-        password: selectedUser.password, // Note: In production, use proper auth methods
         branchId: selectedUser.branchId || ''
       });
       
@@ -357,7 +353,7 @@ const ModifyUser = () => {
                 }}
               />
             </Grid>
-            <Grid item xs={12} md={6}>
+            {/* <Grid item xs={12} md={6}>
               <TextField
                 label="Email"
                 type="email"
@@ -373,7 +369,7 @@ const ModifyUser = () => {
                   ),
                 }}
               />
-            </Grid>
+            </Grid> */}
             <Grid item xs={12} md={6}>
               <TextField
                 label="Role"
@@ -390,7 +386,7 @@ const ModifyUser = () => {
                 }}
               />
             </Grid>
-            <Grid item xs={12} md={6}>
+            {/* <Grid item xs={12} md={6}>
               <TextField
                 label="Password"
                 type="password"
@@ -406,7 +402,7 @@ const ModifyUser = () => {
                   ),
                 }}
               />
-            </Grid>
+            </Grid> */}
             <Grid item xs={12} md={6} sx={{ width: '200px' }}>
                 <FormControl fullWidth sx={{ mb: 2 }}>
                   <InputLabel>Branch</InputLabel>

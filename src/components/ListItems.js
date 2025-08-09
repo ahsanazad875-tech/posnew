@@ -57,8 +57,7 @@ const ListItems = () => {
       setError(null);
   
       let productQuery = collection(db, 'products');
-  
-      console.log(currentUser);
+
       if (currentUser?.role === 'admin' && selectedBranch) {
         productQuery = query(productQuery, where('branchId', '==', selectedBranch));
       } else if (currentUser?.role !== 'admin') {
@@ -71,6 +70,7 @@ const ListItems = () => {
         productName: doc.data().productName,
         stock: doc.data().stock,
         sellPrice: doc.data().sellPrice,
+        branchId: doc.data().branchId,
         createdAt: doc.data().createdAt?.toDate()?.toLocaleDateString() || 'N/A',
         status: doc.data().stock < 2 ? 'Low' : 'In Stock'
       }));
@@ -97,7 +97,7 @@ const ListItems = () => {
       }));
 
       setBranches(branchList);
-      setSelectedBranch(branchList[0]?.id || '');
+      //setSelectedBranch(branchList[0]?.id || '');
     } catch (err) {
       console.error('Error fetching branches:', err);
       setError('Failed to load branches');
@@ -107,7 +107,6 @@ const ListItems = () => {
   useEffect(() => {
     fetchProducts();
     fetchBranches();
-    console.log(currentUser);
   }, [currentUser]);
 
   useEffect(() => {
@@ -149,19 +148,24 @@ const ListItems = () => {
         </Box>
       )
     },
-    {
-      field: 'branchId',
-      headerName: 'Branch',
-      width: 200,
-      renderCell: (params) => {
-        const branch = branches.find(b => b.id === params.value);
-        return <Typography>{branch?.name || 'Unknown'}</Typography>;
-      }
-    },
+    ...(currentUser.role === 'admin'
+    ? [{
+        field: 'branchId',
+        headerName: 'Branch',
+        width: 200,
+        renderCell: (params) => {
+          const branch = branches.find(b => b.id === params.value);
+          return <Typography>{branch?.name || 'Unknown'}</Typography>;
+        }
+      }]
+    : []
+    ),
     {
       field: 'status',
       headerName: 'Status',
       width: 120,
+      align: 'center',
+      headerAlign: 'center',
       renderCell: (params) => (
         <Chip
           label={params.value}
@@ -178,6 +182,8 @@ const ListItems = () => {
       field: 'stock',
       headerName: 'Stock',
       width: 120,
+      align: 'right',
+      headerAlign: 'right',
       renderCell: (params) => (
         <Typography
           fontWeight="500"
@@ -191,8 +197,10 @@ const ListItems = () => {
       field: 'sellPrice',
       headerName: 'Price',
       width: 150,
+      align: 'right',
+      headerAlign: 'right',
       renderCell: (params) => (
-        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+        <Box sx={{ display: 'flex', alignItems: 'right' }}>
           <Typography fontWeight="500" color="success.main">
             Rs. {params.value.toFixed(2)}
           </Typography>
@@ -201,7 +209,7 @@ const ListItems = () => {
     },
     {
       field: 'createdAt',
-      headerName: 'Added On',
+      headerName: 'Entry Date',
       width: 150
     },
   ];
@@ -244,6 +252,7 @@ const ListItems = () => {
             size="small"
             sx={{ minWidth: 200 }}
           >
+            <MenuItem value="">All Branches</MenuItem>
             {branches.map(branch => (
               <MenuItem key={branch.id} value={branch.id}>
                 {branch.name}
@@ -304,7 +313,7 @@ const ListItems = () => {
       <Paper
         elevation={4}
         sx={{
-          height: '70vh',
+          height: '80vh',
           width: '100%',
           borderRadius: '12px',
           overflow: 'hidden',
@@ -327,7 +336,8 @@ const ListItems = () => {
           rows={filteredRows}
           columns={columns}
           loading={loading}
-          pageSize={10}
+          density="compact"
+          pageSize={50}
           rowsPerPageOptions={[10, 25, 50]}
           disableSelectionOnClick
           components={{
@@ -342,6 +352,10 @@ const ListItems = () => {
             '& .MuiDataGrid-toolbarContainer': {
               p: 2,
               borderBottom: '1px solid #f0f0f0'
+            },
+            '& .MuiDataGrid-cell': {
+              display: 'flex',
+              alignItems: 'center'  // Vertically center cell content
             }
           }}
         />
