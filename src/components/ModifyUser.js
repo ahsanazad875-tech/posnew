@@ -34,6 +34,7 @@ import WarningIcon from '@mui/icons-material/Warning';
 import EmailIcon from '@mui/icons-material/Email';
 import LockIcon from '@mui/icons-material/Lock';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
+import { useAuth } from '../contexts/AuthContext';
 
 // Animation keyframes
 const fadeIn = keyframes`
@@ -48,6 +49,7 @@ const pulse = keyframes`
 `;
 
 const ModifyUser = () => {
+  const { currentUser } = useAuth();
   const [users, setUsers] = useState([]);
   const [branches, setBranches] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
@@ -67,6 +69,7 @@ const ModifyUser = () => {
         ...doc.data(),
       }));
       setUsers(userList);
+      console.log(userList);
     } catch (error) {
       console.error('Error fetching users:', error);
       setError('Failed to load users. Please try again.');
@@ -77,8 +80,10 @@ const ModifyUser = () => {
   const fetchBranches = async () => {
     const snapshot = await getDocs(collection(db, 'branches'));
     const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    console.log(list);
     setBranches(list);
   };
+
   useEffect(() => {
     fetchUsers();
     fetchBranches();
@@ -102,6 +107,7 @@ const ModifyUser = () => {
     try {
       setLoading(true);
       const userRef = doc(db, 'users', selectedUser.id);
+
       await updateDoc(userRef, {
         name: selectedUser.name.trim(),
         email: selectedUser.email.trim(),
@@ -190,12 +196,9 @@ const ModifyUser = () => {
       field: 'branchId',
       headerName: 'Branch',
       flex: 1,
-      valueGetter: (params) => {
-        let branch = {};
-        if(params && params.value != null){
-          branch = branches.find(b => b.id === params.value);
-        }
-        return branch ? branch.name : '';
+      renderCell: (params) => {
+        const branch = branches.find(b => b.id === params.value);
+        return <Typography>{branch?.name || 'Unknown'}</Typography>;
       }
     },
     {
@@ -306,6 +309,12 @@ const ModifyUser = () => {
           pageSize={10}
           rowsPerPageOptions={[10, 25, 50]}
           disableSelectionOnClick
+          sx={{
+            '& .MuiDataGrid-cell': {
+              display: 'flex',
+              alignItems: 'center'  // Vertically center cell content
+            }
+          }}
         />
       </Paper>
 

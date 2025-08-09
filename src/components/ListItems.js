@@ -8,6 +8,7 @@ import {
   Avatar,
   Tooltip,
   IconButton,
+  MenuItem,
   Alert,
   TextField,
   InputAdornment
@@ -42,6 +43,8 @@ const pulse = keyframes`
 
 const ListItems = () => {
   const { currentUser } = useAuth(); // ✅ Access user info
+  const [branches, setBranches] = useState([]);
+  const [selectedBranch, setSelectedBranch] = useState('');
   const [rows, setRows] = useState([]);
   const [filteredRows, setFilteredRows] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -52,14 +55,16 @@ const ListItems = () => {
     try {
       setLoading(true);
       setError(null);
-
+  
       let productQuery = collection(db, 'products');
-
-      // ✅ Restrict by branch if user is not admin
-      if (currentUser?.role !== 'admin') {
+  
+      console.log(currentUser);
+      if (currentUser?.role === 'admin' && selectedBranch) {
+        productQuery = query(productQuery, where('branchId', '==', selectedBranch));
+      } else if (currentUser?.role !== 'admin') {
         productQuery = query(productQuery, where('branchId', '==', currentUser?.branchId));
       }
-
+  
       const snapshot = await getDocs(productQuery);
       const products = snapshot.docs.map(doc => ({
         id: doc.id,
@@ -69,7 +74,7 @@ const ListItems = () => {
         createdAt: doc.data().createdAt?.toDate()?.toLocaleDateString() || 'N/A',
         status: doc.data().stock < 2 ? 'Low' : 'In Stock'
       }));
-
+  
       setRows(products);
       setFilteredRows(products);
     } catch (error) {
@@ -79,9 +84,30 @@ const ListItems = () => {
       setLoading(false);
     }
   };
+  
+
+  const fetchBranches = async () => {
+    if (currentUser?.role !== 'admin') return;
+
+    try {
+      const branchSnapshot = await getDocs(collection(db, 'branches'));
+      const branchList = branchSnapshot.docs.map(doc => ({
+        id: doc.id,
+        name: doc.data().name || doc.id
+      }));
+
+      setBranches(branchList);
+      setSelectedBranch(branchList[0]?.id || '');
+    } catch (err) {
+      console.error('Error fetching branches:', err);
+      setError('Failed to load branches');
+    }
+  };
 
   useEffect(() => {
     fetchProducts();
+    fetchBranches();
+    console.log(currentUser);
   }, [currentUser]);
 
   useEffect(() => {
@@ -98,6 +124,12 @@ const ListItems = () => {
     }
   }, [searchTerm, rows]);
 
+  useEffect(() => {
+    if (currentUser?.role === 'admin') {
+      fetchProducts();
+    }
+  }, [selectedBranch]);
+  
   const columns = [
     {
       field: 'productName',
@@ -116,6 +148,15 @@ const ListItems = () => {
           <Typography fontWeight="500">{params.value}</Typography>
         </Box>
       )
+    },
+    {
+      field: 'branchId',
+      headerName: 'Branch',
+      width: 200,
+      renderCell: (params) => {
+        const branch = branches.find(b => b.id === params.value);
+        return <Typography>{branch?.name || 'Unknown'}</Typography>;
+      }
     },
     {
       field: 'status',
@@ -149,7 +190,7 @@ const ListItems = () => {
     {
       field: 'sellPrice',
       headerName: 'Price',
-      width: 120,
+      width: 150,
       renderCell: (params) => (
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
           <Typography fontWeight="500" color="success.main">
@@ -194,7 +235,22 @@ const ListItems = () => {
             }}
           />
         </Box>
-
+        {currentUser?.role === 'admin' && (
+          <TextField
+            select
+            label="Select Branch"
+            value={selectedBranch}
+            onChange={(e) => setSelectedBranch(e.target.value)}
+            size="small"
+            sx={{ minWidth: 200 }}
+          >
+            {branches.map(branch => (
+              <MenuItem key={branch.id} value={branch.id}>
+                {branch.name}
+              </MenuItem>
+            ))}
+          </TextField>
+        )}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           <TextField
             variant="outlined"

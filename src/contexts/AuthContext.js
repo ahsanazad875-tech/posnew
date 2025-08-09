@@ -7,7 +7,7 @@ import {
   browserLocalPersistence 
 } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
-import { auth, db } from '../firebase'; // Import from your firebase config
+import { auth, db } from '../firebase';
 
 const AuthContext = createContext();
 
@@ -20,65 +20,78 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Set persistence first
-    setPersistence(auth, browserLocalPersistence)
-      .then(() => {
-        const unsubscribe = onAuthStateChanged(auth, async (user) => {
-          if (user) {
-            try {
-              // Get user document from Firestore
-              const userDoc = await getDoc(doc(db, 'users', user.uid));
-              if (userDoc.exists()) {
-                const userData = userDoc.data();
-                setCurrentUser({ 
-                  uid: user.uid,
-                  email: user.email,
-                  name: userData.name || user.email.split('@')[0],
-                  role: userData.role || 'user', // Default to 'user' if role not set
-                  isAdmin: userData.role === 'admin', // Proper admin check
-                  branchId: userData.branchId || null
-                });
-              } else {
-                // If no user document exists, create a basic one
-                setCurrentUser({
-                  uid: user.uid,
-                  email: user.email,
-                  name: user.email.split('@')[0],
-                  role: 'user',
-                  isAdmin: false,
-                  branchId: null
-                });
-              }
-            } catch (error) {
-              console.error("Error fetching user data:", error);
+    const authInstance = getAuth();
+
+    // Set persistence only once
+    setPersistence(authInstance, browserLocalPersistence).catch((error) => {
+      console.error("Error setting persistence:", error);
+    });
+
+    // Listen for auth state changes immediately
+    const unsubscribe = onAuthStateChanged(authInstance, async (user) => {
+      if (user) {
+        try {
+          // Check if this is a legacy user (anonymous auth with stored data)
+          const legacyUserData = sessionStorage.getItem('legacyUserData');
+          
+          if (user.isAnonymous && legacyUserData) {
+            // Handle legacy user from sessionStorage
+            const userData = JSON.parse(legacyUserData);
+            setCurrentUser({
+              uid: userData.uid,
+              email: userData.email,
+              name: userData.name,
+              role: userData.role,
+              isAdmin: userData.role === 'admin',
+              branchId: userData.branchId,
+              isAuthenticated: true,
+              isLegacyUser: true
+            });
+          } else {
+            // Handle regular Firebase Auth user
+            const userDoc = await getDoc(doc(db, 'users', user.uid));
+            
+            if (userDoc.exists()) {
+              const userData = userDoc.data();
+              setCurrentUser({
+                uid: user.uid,
+                email: user.email,
+                name: userData?.name || user.email.split('@')[0],
+                role: userData?.role || 'user',
+                isAdmin: userData?.role === 'admin',
+                branchId: userData?.branchId || null,
+                isAuthenticated: true
+              });
+            } else {
+              console.warn('User authenticated but no user document found:', user.email);
               setCurrentUser(null);
             }
-          } else {
-            setCurrentUser(null);
           }
-          setLoading(false);
-        });
+        } catch (error) {
+          console.error("Error fetching user data:", error);
+          setCurrentUser(null);
+        }
+      } else {
+        // Clear legacy user data on signout
+        sessionStorage.removeItem('legacyUserData');
+        setCurrentUser(null);
+      }
+      setLoading(false);
+    });
 
-        return unsubscribe;
-      })
-      .catch((error) => {
-        console.error("Error setting persistence:", error);
-        setLoading(false);
-      });
-
+    return unsubscribe;
   }, []);
 
   const value = {
     currentUser,
     loading,
-    // Add helper functions if needed
     isAdmin: () => currentUser?.role === 'admin',
     branchId: currentUser?.branchId || null
   };
 
   return (
     <AuthContext.Provider value={value}>
-      {!loading && children}
+      {children}
     </AuthContext.Provider>
   );
 }

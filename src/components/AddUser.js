@@ -3,7 +3,8 @@ import {
   Box, Typography, TextField, Button, Grid, Paper, Alert, InputAdornment,
   Avatar, LinearProgress, MenuItem
 } from '@mui/material';
-import { db, collection, getDocs, addDoc, serverTimestamp } from '../firebase';
+import { auth, db, collection, getDocs, addDoc, serverTimestamp, setDoc, doc } from '../firebase';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { useNavigate } from 'react-router-dom';
 import { keyframes } from '@emotion/react';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
@@ -82,17 +83,20 @@ const AddUser = () => {
     }
 
     try {
-      const usersRef = collection(db, 'users');
-      await addDoc(usersRef, {
-        name,
-        lastName,
-        email,
-        phone,
-        password, // Note: In production, use Firebase Auth
-        role: 'user',
-        branchId,
-        createdAt: serverTimestamp()
-      });
+      // Create user in Firebase Auth
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const userId = userCredential.user.uid;
+
+        // Save in Firestore with Auth UID (no password)
+        await setDoc(doc(db, 'users', userId), {
+          name,
+          lastName,
+          email,
+          phone,
+          role: 'user',
+          branchId,
+          createdAt: serverTimestamp()
+        });
 
       setSuccess('User added successfully!');
       setName('');
@@ -202,7 +206,7 @@ const AddUser = () => {
               value={branchId}
               onChange={(e) => setBranchId(e.target.value)}
               required
-              sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
+              sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' , width: '260px' } }}
             >
               {branches.length === 0 ? (
                 <MenuItem value="">Loading branches...</MenuItem>

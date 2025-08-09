@@ -29,8 +29,13 @@ const db = getFirestore(app);
 
 // Admin verification
 export const verifyAdmin = async (uid) => {
-  const userDoc = await getDoc(doc(db, 'users', uid));
-  return userDoc.exists() && userDoc.data().role === 'admin';
+  try {
+    const userDoc = await getDoc(doc(db, 'users', uid));
+    return userDoc.exists() && userDoc.data().role === 'admin';
+  } catch (error) {
+    console.error("Error verifying admin:", error);
+    return false;
+  }
 };
 
 // Export Firebase services and Firestore utilities

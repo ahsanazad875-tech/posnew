@@ -15,11 +15,11 @@ import {
   CircularProgress
 } from '@mui/material';
 import { LockOutlined } from '@mui/icons-material';
-import { query, where, getDocs, collection } from 'firebase/firestore'; // Add query import
+import { query, where, getDocs, collection } from 'firebase/firestore';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
-import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
-import { app } from '../firebase'; // Your Firebase app instance
-import { getFirestore, doc, getDoc } from 'firebase/firestore'; // Firebase Firestore
+import { getAuth, signInWithEmailAndPassword, signInAnonymously, updateProfile } from 'firebase/auth';
+import { db } from '../firebase';
+import { doc, getDoc } from 'firebase/firestore';
 import './Login.css';
 
 const theme = createTheme({
@@ -36,7 +36,7 @@ const theme = createTheme({
   },
 });
 
-const Login = ({ setAuth }) => {
+const Login = () => {
   const [role, setRole] = useState('user');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -44,84 +44,143 @@ const Login = ({ setAuth }) => {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const navigate = useNavigate();
-  const auth = getAuth(app);
-  const db = getFirestore(app); // Firestore instance
 
 const handleLogin = async (e) => {
   e.preventDefault();
   setError('');
   setLoading(true);
-  setMessage(''); // Clear previous message
+  setMessage('');
 
   try {
+    const auth = getAuth();
+
     if (role === 'admin') {
-      // Admin login via Firebase Authentication
+      // Admin login - must use Firebase Auth
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
-      setAuth({
-        role: 'admin',
-        isAuthenticated: true,
-        uid: user.uid,
-        email: user.email,
-      });
-      setMessage('Login Successful!');
-      navigate('/');
-    } else if (role === 'user') {
-      // For user, search email in Firestore (email is a field now)
-      const usersRef = collection(db, 'users');
-      const q = query(usersRef, where('email', '==', email)); // Query by email field
-      const querySnapshot = await getDocs(q);
-
-      if (!querySnapshot.empty) {
-        const userDoc = querySnapshot.docs[0]; // Get the first matching document
+      
+      // Verify admin role in Firestore
+      const userDoc = await getDoc(doc(db, 'users', user.uid));
+      
+      if (userDoc.exists()) {
         const userData = userDoc.data();
-
-        // Check if password matches (ensure you store hashed passwords, not plaintext)
-        if (userData.password === password) {
-          setAuth({
-            role: 'user',
-            isAuthenticated: true,
-            email: userData.email,
-            branchId: userData.branchId // ✅ Add this line
-          });
-          setMessage('Login Successful!');
-          navigate('/Dashboard');
-        } else {
-          setError('Incorrect password. Please try again.');
-          setMessage('Login Failed!');
+        if (userData.role !== 'admin') {
+          setError('Access denied. Admin privileges required.');
+          await auth.signOut();
+          return;
         }
+        setMessage('Login Successful!');
+        navigate('/');
       } else {
-        setError('No user found with this email address.');
-        setMessage('Login Failed!');
+        setError('Admin data not found. Please contact administrator.');
+        await auth.signOut();
+        return;
+      }
+
+    } else if (role === 'user') {
+      // User login - try Firebase Auth first, then Firestore
+      try {
+        // Try Firebase Auth first
+        console.log(auth, email, password);
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
+        console.log(user, user.uid);
+        const userDoc = await getDoc(doc(db, 'users', user.uid));
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          if (userData.role === 'admin') {
+            setError('Please select "Admin" from the dropdown to login as admin.');
+            await auth.signOut();
+            return;
+          }
+          setMessage('Login Successful!');
+          navigate('/');
+        } else {
+          setError('User data not found. Please contact administrator.');
+          await auth.signOut();
+          return;
+        }
+
+      } catch (authError) {
+        console.log('Firebase auth failed, trying Firestore-only user login');
+        
+        // Fallback: Check for Firestore-only user
+        const usersRef = collection(db, 'users');
+        const q = query(usersRef, where('email', '==', email));
+        const querySnapshot = await getDocs(q);
+
+        if (!querySnapshot.empty) {
+          const userDocSnap = querySnapshot.docs[0];
+          const userData = userDocSnap.data();
+
+          // Verify password (WARNING: This is insecure with plaintext passwords)
+          if (userData.password === password) {
+            if (userData.role === 'admin') {
+              setError('Admin users must use secure authentication. Please contact administrator.');
+              return;
+            }
+
+            // Create a temporary anonymous session for Firestore-only users
+            try {
+              await signInAnonymously(auth);
+              const currentUser = auth.currentUser;
+              
+              // Update the anonymous user with email for identification
+              await updateProfile(currentUser, {
+                displayName: `firestore_user_${userDocSnap.id}`
+              });
+
+              // Store user data in session/local storage as fallback
+              sessionStorage.setItem('legacyUserData', JSON.stringify({
+                uid: userDocSnap.id,
+                email: userData.email,
+                name: userData.name || userData.email.split('@')[0],
+                role: userData.role || 'user',
+                branchId: userData.branchId || null,
+                isLegacyUser: true
+              }));
+
+              setMessage('Login Successful! (Legacy user - please update your account)');
+              navigate('/');
+            } catch (anonError) {
+              console.error('Anonymous auth failed:', anonError);
+              setError('Login failed. Please contact administrator.');
+            }
+          } else {
+            setError('Incorrect password. Please try again.');
+          }
+        } else {
+          setError('No user found with this email address.');
+        }
       }
     }
+
   } catch (err) {
-    setLoading(false);
-    // Handle other Firebase errors
-    if (err.code === 'auth/wrong-password') {
+    console.error('Login error:', err);
+    
+    if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') {
+      setError(`No ${role} account found with this email address. Please check your credentials.`);
+    } else if (err.code === 'auth/wrong-password') {
       setError('Incorrect password. Please try again.');
-      setMessage('Login Failed!');
-    } else if (err.code === 'auth/user-not-found') {
-      setError('No user found with this email address.');
-      setMessage('Login Failed!');
     } else if (err.code === 'auth/invalid-email') {
       setError('Invalid email address format.');
-      setMessage('Login Failed!');
+    } else if (err.code === 'auth/too-many-requests') {
+      setError('Too many failed attempts. Please try again later.');
     } else {
-      setError(err.message || 'An error occurred. Please try again.');
+      setError(err.message || 'Login failed. Please check your credentials.');
     }
+  } finally {
+    setLoading(false);
   }
 
-  // Reset the form after 3 seconds
-  setTimeout(() => {
-    setLoading(false);
-    setEmail('');
-    setPassword('');
-    setError('');
-    setMessage('');
-  }, 1000); // Reset after 1 seconds
+  // Clear messages after delay
+  if (message || error) {
+    setTimeout(() => {
+      setMessage('');
+      setError('');
+    }, 3000);
+  }
 };
-
 
   return (
     <div className="container">
@@ -181,19 +240,19 @@ const handleLogin = async (e) => {
                 </div>
 
                 {error && (
-                  <Typography color="error" sx={{ mb: 2 }}>
+                  <Typography color="error" sx={{ mb: 2, fontSize: '0.875rem' }}>
                     {error}
                   </Typography>
                 )}
 
                 {message && (
-                  <Typography color="primary" sx={{ mb: 2 }}>
+                  <Typography color="success.main" sx={{ mb: 2, fontSize: '0.875rem' }}>
                     {message}
                   </Typography>
                 )}
 
                 <div className="forgot">
-                  <Link to="/ForgotPassword">Forgot password?</Link>
+                  <Link to="/forgotpassword">Forgot password?</Link>
                 </div>
 
                 <Button
@@ -201,6 +260,8 @@ const handleLogin = async (e) => {
                   className="btn"
                   disabled={loading}
                   fullWidth
+                  variant="contained"
+                  sx={{ mt: 2, mb: 2 }}
                 >
                   {loading ? (
                     <CircularProgress size={24} color="inherit" />
@@ -218,5 +279,4 @@ const handleLogin = async (e) => {
     </div>
   );
 };
-
 export default Login;

@@ -6,6 +6,8 @@ import {
   TextField, 
   Paper,
   LinearProgress,
+  Select,
+  MenuItem,
   Chip,
   Avatar,
   Dialog,
@@ -303,22 +305,21 @@ const UpdateStock = () => {
         </Alert>
       )}
         <Box sx={{ maxWidth: 300, mb: 2 }}>
-          <Typography variant="subtitle2" sx={{ mb: 1 }}>Filter by Branch</Typography>
-          <TextField
-            select
-            fullWidth
-            value={selectedBranch}
-            onChange={(e) => setSelectedBranch(e.target.value)}
-            SelectProps={{ native: false }}
-          >
-            <option value="">All Branches</option>
-            {branches.map(branch => (
-              <option key={branch.id} value={branch.id}>
-                {branch.name}
-              </option>
-            ))}
-          </TextField>
-        </Box>
+            <Typography variant="subtitle2" sx={{ mb: 1 }}>Filter by Branch</Typography>
+            <Select
+              fullWidth
+              value={selectedBranch}
+              onChange={(e) => setSelectedBranch(e.target.value)}
+              displayEmpty
+            >
+              <MenuItem value="">All Branches</MenuItem>
+              {branches.map(branch => (
+                <MenuItem key={branch.id} value={branch.id}>
+                  {branch.name}
+                </MenuItem>
+              ))}
+            </Select>
+          </Box>
       {/* Search Bar */}
       <Paper 
         elevation={2} 
@@ -380,6 +381,12 @@ const UpdateStock = () => {
           columns={columns}
           loading={loading}
           pageSize={10}
+          sx={{
+            '& .MuiDataGrid-cell': {
+              display: 'flex',
+              alignItems: 'center'  // Vertically center cell content
+            }
+          }}
           rowsPerPageOptions={[10, 25, 50]}
           disableSelectionOnClick
           components={{

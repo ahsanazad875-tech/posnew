@@ -9,7 +9,9 @@ import {
   Dashboard as DashboardIcon
 } from '@mui/icons-material';
 import { getDocs, collection, query, where } from 'firebase/firestore';
-import { db } from '../firebase';
+import { signOut } from 'firebase/auth'; // ADD THIS IMPORT
+import { db, auth } from '../firebase'; // ADD auth IMPORT
+import { useAuth } from '../contexts/AuthContext'; // ADD THIS IMPORT
 import { useNavigate } from 'react-router-dom';
 import { keyframes } from '@emotion/react';
 
@@ -24,13 +26,19 @@ const fadeIn = keyframes`
   to { opacity: 1; transform: translateY(0); }
 `;
 
-const Dashboard = ({ auth, setAuth }) => {
-  const { isAuthenticated, role, email, uid, branchId } = auth;
+const Dashboard = () => {
+  const { currentUser } = useAuth();
   const [stats, setStats] = useState([]);
   const [lowStockCount, setLowStockCount] = useState(0);
   const navigate = useNavigate();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+
+  // Extract user data properly
+  const role = currentUser?.role || 'user';
+  const email = currentUser?.email || '';
+  const branchId = currentUser?.branchId;
+  const isAuthenticated = !!currentUser;
 
   const allMenuItems = {
     admin: [
@@ -52,44 +60,54 @@ const Dashboard = ({ auth, setAuth }) => {
 
   const menuItems = allMenuItems[role] || [];
 
-  const handleLogout = () => {
-    setAuth({ isAuthenticated: false, role: null, email: null, uid: null });
-    navigate('/login');
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      navigate('/login');
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
   };
 
   const handleLogin = () => navigate('/login');
 
   useEffect(() => {
     const fetchStats = async () => {
-      let productQuery = collection(db, 'products');
-      let userQuery = collection(db, 'users');
-      let ordersQuery = collection(db, 'orders');
+      if (!isAuthenticated) return;
+      
+      try {
+        let productQuery = collection(db, 'products');
+        let userQuery = collection(db, 'users');
+        let ordersQuery = collection(db, 'orders');
 
-      // Filter by branch if not admin
-      if (role !== 'admin') {
-        productQuery = query(productQuery, where('branchId', '==', branchId));
-        userQuery = query(userQuery, where('branchId', '==', branchId));
-        ordersQuery = query(ordersQuery, where('branchId', '==', branchId));
+        // Filter by branch if not admin
+        if (role !== 'admin' && branchId) {
+          productQuery = query(productQuery, where('branchId', '==', branchId));
+          userQuery = query(userQuery, where('branchId', '==', branchId));
+          ordersQuery = query(ordersQuery, where('branchId', '==', branchId));
+        }
+
+        const [productSnapshot, userSnapshot, ordersSnapshot] = await Promise.all([
+          getDocs(productQuery),
+          getDocs(userQuery),
+          getDocs(ordersQuery)
+        ]);
+
+        const lowStockItems = productSnapshot.docs.filter(doc => doc.data().stock < 2);
+        setLowStockCount(lowStockItems.length);
+
+        setStats([
+          { label: 'Total Products', sub: `${productSnapshot.size} items`, color: 'linear-gradient(135deg, #2196f3, #1976d2)', icon: <Inventory sx={{ fontSize: 40, opacity: 0.8 }} /> },
+          { label: 'Low Stock Items', sub: `${lowStockItems.length} items`, color: 'linear-gradient(135deg, #f44336, #d32f2f)', icon: <MonetizationOn sx={{ fontSize: 40, opacity: 0.8 }} /> },
+          { label: 'Total Users', sub: `${userSnapshot.size} users`, color: 'linear-gradient(135deg, #4caf50, #388e3c)', icon: <PersonAdd sx={{ fontSize: 40, opacity: 0.8 }} /> },
+          { label: 'Total Orders', sub: `${ordersSnapshot.size} orders`, color: 'linear-gradient(135deg, #ff9800, #f57c00)', icon: <ShoppingCartCheckout sx={{ fontSize: 40, opacity: 0.8 }} /> },
+        ]);
+      } catch (error) {
+        console.error('Error fetching stats:', error);
       }
-
-      const [productSnapshot, userSnapshot, ordersSnapshot] = await Promise.all([
-        getDocs(productQuery),
-        getDocs(userQuery),
-        getDocs(ordersQuery)
-      ]);
-
-      const lowStockItems = productSnapshot.docs.filter(doc => doc.data().stock < 2);
-      setLowStockCount(lowStockItems.length);
-
-      setStats([
-        { label: 'Total Products', sub: `${productSnapshot.size} items`, color: 'linear-gradient(135deg, #2196f3, #1976d2)', icon: <Inventory sx={{ fontSize: 40, opacity: 0.8 }} /> },
-        { label: 'Low Stock Items', sub: `${lowStockItems.length} items`, color: 'linear-gradient(135deg, #f44336, #d32f2f)', icon: <MonetizationOn sx={{ fontSize: 40, opacity: 0.8 }} /> },
-        { label: 'Total Users', sub: `${userSnapshot.size} users`, color: 'linear-gradient(135deg, #4caf50, #388e3c)', icon: <PersonAdd sx={{ fontSize: 40, opacity: 0.8 }} /> },
-        { label: 'Total Orders', sub: `${ordersSnapshot.size} orders`, color: 'linear-gradient(135deg, #ff9800, #f57c00)', icon: <ShoppingCartCheckout sx={{ fontSize: 40, opacity: 0.8 }} /> },
-      ]);
     };
 
-    if (isAuthenticated) fetchStats();
+    fetchStats();
   }, [role, branchId, isAuthenticated]);
 
   if (!isAuthenticated) {
@@ -213,7 +231,7 @@ const Dashboard = ({ auth, setAuth }) => {
               mb: 1,
               color: '#2c3e50'
             }}>
-             
+              Welcome back, {currentUser?.name || 'User'}!
             </Typography>
             <Typography variant="body1" sx={{ 
               color: '#7f8c8d',

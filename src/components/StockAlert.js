@@ -111,13 +111,22 @@ const StockAlert = () => {
     { 
       field: 'productName', 
       headerName: 'Product Name', 
-      flex: 1,
+      flex: 2,
       renderCell: (params) => (
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
           <InventoryIcon color="action" sx={{ mr: 1 }} />
           <Typography fontWeight="500">{params.value}</Typography>
         </Box>
       )
+    },
+    { 
+      field: 'branchId', 
+      headerName: 'Branch', 
+      flex: 1,
+      renderCell: (params) => {
+        const branch = branches.find(b => b.id === params.value);
+        return <Typography>{branch?.name || 'Unknown'}</Typography>;
+      }
     },
     { 
       field: 'stock', 
@@ -255,6 +264,10 @@ const StockAlert = () => {
               '& .MuiDataGrid-columnHeaderTitle': {
                 fontWeight: '600',
                 color: '#555'
+              },
+              '& .MuiDataGrid-cell': {
+                display: 'flex',
+                alignItems: 'center'  // Vertically center cell content
               }
             }}
           />

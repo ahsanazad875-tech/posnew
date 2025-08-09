@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { CssBaseline, ThemeProvider, createTheme } from '@mui/material';
 import { ToastContainer } from 'react-toastify';
+import { useAuth } from './contexts/AuthContext';
 import 'react-toastify/dist/ReactToastify.css';
 
 // Component imports
@@ -34,24 +35,24 @@ const theme = createTheme({
 });
 
 function App() {
-  const [auth, setAuth] = useState({
-    isAuthenticated: false,
-    role: null,  // e.g., 'admin' or 'user'
-    email: null,
-    uid: null,
-  });
+  const { currentUser, loading } = useAuth();
 
-  const PrivateRoute = ({ children, allowedRoles }) => {
-    if (!auth.isAuthenticated) {
+  function PrivateRoute({ children, allowedRoles }) {
+
+    if (loading) {
+      return <div>Loading...</div>; // show spinner while checking auth
+    }
+
+    if (!currentUser) {
       return <Navigate to="/login" />;
     }
 
-    if (allowedRoles && !allowedRoles.includes(auth.role)) {
+    if (allowedRoles && !allowedRoles.includes(currentUser.role)) {
       return <Navigate to="/" />;
     }
 
     return children;
-  };
+  }
 
   return (
     <ThemeProvider theme={theme}>
@@ -60,16 +61,16 @@ function App() {
       <Router>
         <Routes>
           <Route
-            path="/login"
-            element={auth.isAuthenticated ? <Navigate to="/" /> : <Login setAuth={setAuth} />}
-          />
+              path="/login"
+              element={currentUser ? <Navigate to="/" /> : <Login />}
+            />
           <Route path="/forgotpassword" element={<ForgotPassword />} />
           <Route path="/sales-report" element={<SalesReport />} />
           <Route
             path="/"
             element={
               <PrivateRoute allowedRoles={['admin', 'user']}>
-                <Dashboard auth={auth} setAuth={setAuth} />
+                <Dashboard />
               </PrivateRoute>
             }
           />
