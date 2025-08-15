@@ -55,6 +55,7 @@ const Dashboard = () => {
     user: [
       { label: 'List Items', icon: <ListAlt />, action: () => navigate('/list-items'), color: 'linear-gradient(135deg, #00c6ff 0%, #0072ff 100%)' },
       { label: 'Checkout', icon: <ShoppingCartCheckout />, action: () => navigate('/checkout'), color: 'linear-gradient(135deg, #f857a6 0%, #ff5858 100%)' },
+      { label: 'Sales Report', icon: <Assessment />, action: () => navigate('/sales-report'), color: 'linear-gradient(135deg, #7b4397 0%, #dc2430 100%)' },
     ],
   };
 

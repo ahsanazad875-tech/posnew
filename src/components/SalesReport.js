@@ -8,11 +8,13 @@ import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as ChartTooltip, Legend, ResponsiveContainer } from 'recharts';
-import { getDocs, collection } from 'firebase/firestore';
+import { getDocs, collection, query, where } from 'firebase/firestore';
 import { db } from '../firebase';
 import { format, startOfDay, endOfDay, startOfMonth, endOfMonth, startOfYear, endOfYear } from 'date-fns';
+import { useAuth } from '../contexts/AuthContext';
 
 const SalesReport = () => {
+  const { currentUser } = useAuth();
   const [orders, setOrders] = useState([]);
   const [selectedBranch, setSelectedBranch] = useState('');
   const [branches, setBranches] = useState([]);
@@ -29,15 +31,27 @@ const SalesReport = () => {
         setLoading(true);
         setError(null);
 
-        const ordersSnapshot = await getDocs(collection(db, 'orders'));
+        let ordersQuery;
+
+        if (currentUser?.role === 'admin') {
+          ordersQuery = collection(db, 'orders');
+        } else {
+          ordersQuery = query(
+            collection(db, 'orders'),
+            where('branchId', '==', currentUser.branchId)
+          );
+        }
+
+        const ordersSnapshot = await getDocs(ordersQuery);
         const ordersData = ordersSnapshot.docs.map(doc => {
           const orderData = doc.data();
-          
+
           const total = parseFloat(orderData.total) || 0;
           const totalCost = parseFloat(orderData.totalCost) || 0;
           const totalProfit = parseFloat(orderData.totalProfit) || 0;
           const profitMargin = parseFloat(orderData.profitMargin) || 0;
           const hasNegativeProfit = totalProfit < 0;
+
 
           return {
             id: doc.id,
@@ -64,6 +78,7 @@ const SalesReport = () => {
     };
 
     const fetchBranches = async () => {
+      if (currentUser?.role !== 'admin') return;
       const snapshot = await getDocs(collection(db, 'branches'));
       const data = snapshot.docs.map(doc => ({
         id: doc.id,
@@ -103,8 +118,14 @@ const SalesReport = () => {
             return true;
         }
       })();
-    
-      const isBranchMatch = selectedBranch === '' || order.branchId === selectedBranch;
+
+      let branchId = selectedBranch;
+
+      if(currentUser?.role !== 'admin'){
+        branchId = currentUser.branchId;
+      }
+
+      const isBranchMatch = branchId === '' || order.branchId === branchId;
     
       return isDateMatch && isBranchMatch;
     });
@@ -223,7 +244,7 @@ const SalesReport = () => {
               placeholder="Customer name or order ID"
             />
           </Grid>
-
+          {currentUser?.role === 'admin' && (
           <Grid item xs={6} md={2}>
             <Select
               fullWidth
@@ -239,6 +260,7 @@ const SalesReport = () => {
               ))}
             </Select>
           </Grid>
+          )}
           <Grid item xs={6} md={2}>
             <Select
               fullWidth

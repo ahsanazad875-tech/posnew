@@ -95,7 +95,13 @@ function App() {
               element={currentUser ? <Navigate to="/" /> : <Login />}
             />
           <Route path="/forgotpassword" element={<ForgotPassword />} />
-          <Route path="/sales-report" element={<SalesReport />} />
+          <Route 
+            path="/sales-report" 
+            element={
+              <PrivateRoute allowedRoles={['admin', 'user']}>
+                <SalesReport />
+              </PrivateRoute>
+            } />
           <Route
             path="/"
             element={
