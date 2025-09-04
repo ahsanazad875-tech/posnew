@@ -316,7 +316,7 @@ const CheckoutPage = ({ userId }) => {
           textShadow: '1px 1px 2px rgba(0,0,0,0.1)'
         }}
       >
-        Park Shop
+        Royal Vape
       </Typography>
 
       {/* Success Alert - Will auto-dismiss after 1 second */}
